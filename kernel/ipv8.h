@@ -39,11 +39,14 @@
 #define IPV8_HDRLEN     28      /* bytes; IHL field value == 7 */
 
 /*
- * Address family number.  Linux 6.x defines AF_MAX == 46 (AF_MCTP == 45).
- * We claim 47; adjust if your kernel already uses it.
+ * AF_ECONET (19) has been vacant since Linux 3.5 when the Econet
+ * implementation was removed.  We reuse that slot as our provisional
+ * AF_INET8 number because Linux 6.x sets AF_MAX = NPROTO = 46, making
+ * any value >= 46 rejected by sock_register().  Adjust if your kernel
+ * has a conflicting use of slot 19 (unlikely on any kernel >= 3.5).
  */
 #ifndef AF_INET8
-#define AF_INET8        47
+#define AF_INET8        19      /* provisional; reuses vacant AF_ECONET slot */
 #endif
 #define PF_INET8        AF_INET8
 

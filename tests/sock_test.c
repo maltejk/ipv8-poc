@@ -23,7 +23,7 @@
  * Definitions mirroring ipv8.h (not in libc)
  * ------------------------------------------------------------------ */
 
-#define AF_INET8   47
+#define AF_INET8   19      /* reuses vacant AF_ECONET slot */
 #define PF_INET8   AF_INET8
 
 /* 64-bit IPv8 address: ASN prefix + host */
@@ -324,7 +324,7 @@ static void test_socket_stress(void)
 int main(void)
 {
     tap_plan(10);
-    tap_diag("AF_INET8 = 47, ETH_P_IPV8 = 0x0888 (provisional)");
+    tap_diag("AF_INET8 = 19 (vacant AF_ECONET slot), ETH_P_IPV8 = 0x0888 (provisional)");
 
     test_socket_types();       /* tests 1-2 */
     test_raw_socket();         /* test  3   */

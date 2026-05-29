@@ -21,8 +21,8 @@
  * ------------------------------------------------------------------ */
 
 #define ETH_P_IPV8      0x0888
-#define AF_INET8        47
-#define PF_INET8        47
+#define AF_INET8        19      /* reuses vacant AF_ECONET slot; see kernel/ipv8.h */
+#define PF_INET8        19
 #define IPV8_VERSION    8
 #define IPV8_HDRLEN     28
 #define IPPROTO_ICMP8   1       /* reuses ICMP protocol number */

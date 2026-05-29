@@ -402,7 +402,7 @@ Options:
 | Constant | Value | Notes |
 |---|---|---|
 | `ETH_P_IPV8` | `0x0888` | Provisional EtherType (no IANA assignment) |
-| `AF_INET8` / `PF_INET8` | `47` | Above Linux 6.x `AF_MAX=46`; adjust if needed |
+| `AF_INET8` / `PF_INET8` | `19` | Reuses vacant `AF_ECONET` slot (Econet removed in Linux 3.5) |
 | `IPV8_HDRLEN` | `28` bytes | IPv4 (20 B) + 2 × 4 extra bytes for wider addresses |
 | `IPV8_VERSION` | `8` | Value written to the header's version field |
 | `IPV8_ZONE_PORT` | `8538` | Provisional Zone Server UDP port (no IANA assignment) |
@@ -459,9 +459,10 @@ Userspace
 
 - **No production use.** This is a PoC for an individual IETF draft that
   has not been adopted by any working group.
-- `AF_INET8 = 47` and `ETH_P_IPV8 = 0x0888` are **provisional** — no IANA
-  assignments exist yet.  If your kernel defines `AF_MAX >= 47`, change
-  `AF_INET8` in `kernel/ipv8.h`.
+- `AF_INET8 = 19` (reuses the vacant `AF_ECONET` slot removed in Linux 3.5)
+  and `ETH_P_IPV8 = 0x0888` are **provisional** — no IANA assignments exist
+  yet.  Change `AF_INET8` in `kernel/ipv8.h` and `tools/ipv8_tools.h` if
+  slot 19 is in use on your kernel.
 - Routing is static (manual entries); no BGP8 or OSPF8 daemon is included.
 - Zone Server queries are not yet implemented — the cache must be seeded
   manually via `/proc/net/ipv8_zone` or `ipv8_zone_update()`.
