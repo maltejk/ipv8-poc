@@ -209,7 +209,7 @@ int ipv8_route_add(const struct in8_addr *prefix, __be32 gateway,
 
     rt->prefix  = *prefix;
     rt->gateway = gateway;
-    strlcpy(rt->dev_name, dev_name, IFNAMSIZ);
+    strscpy(rt->dev_name, dev_name, IFNAMSIZ);
     INIT_LIST_HEAD(&rt->node);
 
     spin_lock(&ipv8_route_lock);

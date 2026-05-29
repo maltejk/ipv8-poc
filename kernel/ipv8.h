@@ -239,6 +239,10 @@ int  ipv8_zone_lookup(struct net *net, const char *name,
 void ipv8_zone_update(struct net *net, const char *name,
                       const struct in8_addr *addr, u32 ttl_sec);
 
+/* Route table (used by zone and future sysfs) */
+int ipv8_route_add(const struct in8_addr *prefix, __be32 gateway,
+                   const char *dev_name);
+
 /* Socket registry (used by input demux) */
 void         ipv8_register_sock(struct sock *sk);
 void         ipv8_unregister_sock(struct sock *sk);
