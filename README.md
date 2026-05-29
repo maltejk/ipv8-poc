@@ -8,6 +8,10 @@ and a unified Zone Server management plane.
 > **Status**: proof-of-concept — no production use.  
 > The draft expires October 2026 unless renewed.
 
+> **AI-generated**: This repository was created entirely by an AI assistant
+> (Claude, Anthropic).  No humans wrote the code; no computers were harmed
+> in the making of this PoC — as of now.
+
 ---
 
 ## Table of contents
