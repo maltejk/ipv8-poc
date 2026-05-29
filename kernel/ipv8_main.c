@@ -160,6 +160,20 @@ static int ipv8_recvmsg(struct socket *sock, struct msghdr *msg,
     if (!skb)
         return err;
 
+    /* Return source address via recvfrom() / msg_name.
+     * skb->network_header still points at the IPv8 header even after
+     * ipv8_rcv stripped it from skb->data with skb_pull(). */
+    if (msg->msg_name) {
+        const struct ipv8hdr *net_hdr =
+            (const struct ipv8hdr *)skb_network_header(skb);
+        struct sockaddr_in8 *sin8 = msg->msg_name;
+
+        memset(sin8, 0, sizeof(*sin8));
+        sin8->sin8_family = AF_INET8;
+        sin8->sin8_addr   = net_hdr->saddr;
+        msg->msg_namelen  = sizeof(*sin8);
+    }
+
     copied = min_t(size_t, len, skb->len);
     err = skb_copy_datagram_msg(skb, 0, msg, copied);
     if (!err) {

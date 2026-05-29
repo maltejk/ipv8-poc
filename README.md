@@ -19,10 +19,11 @@ and a unified Zone Server management plane.
 5. [Build](#build)
 6. [Load & configure](#load--configure)
 7. [Running the tests](#running-the-tests)
-8. [Key constants](#key-constants)
-9. [Architecture overview](#architecture-overview)
-10. [Limitations](#limitations)
-11. [References](#references)
+8. [Testing with ping8](#testing-with-ping8)
+9. [Key constants](#key-constants)
+10. [Architecture overview](#architecture-overview)
+11. [Limitations](#limitations)
+12. [References](#references)
 
 ---
 
@@ -49,18 +50,23 @@ assignment (DHCP8), name resolution (DNS8), time sync (NTP8), authentication
 
 ```
 ipv8-poc/
-├── kernel/           Linux kernel module (GPL-2.0-or-later)
+├── kernel/              Linux kernel module (GPL-2.0-or-later)
 │   ├── Makefile
-│   ├── ipv8.h        On-wire types, constants, cross-file declarations
-│   ├── ipv8_main.c   AF_INET8 address family, socket operations
-│   ├── ipv8_input.c  EtherType 0x0888 receive handler
-│   ├── ipv8_output.c Static route table, neighbour/ARP resolution
-│   ├── ipv8_xlate.c  XLATE8: Netfilter-based IPv4↔IPv8 translation
-│   └── ipv8_zone.c   Zone Server cache + /proc/net interfaces
+│   ├── ipv8.h           On-wire types, constants, cross-file declarations
+│   ├── ipv8_main.c      AF_INET8 address family, socket operations
+│   ├── ipv8_input.c     EtherType 0x0888 receive handler
+│   ├── ipv8_output.c    Static route table, neighbour/ARP resolution
+│   ├── ipv8_xlate.c     XLATE8: Netfilter-based IPv4↔IPv8 translation
+│   └── ipv8_zone.c      Zone Server cache + /proc/net interfaces
+├── tools/               Userspace tools (no extra dependencies)
+│   ├── Makefile
+│   ├── ipv8_tools.h     Shared header: address types, ICMP helpers, zone lookup
+│   ├── ping8.c          ICMP Echo client (ping over IPv8)
+│   └── ipv8_echod.c     ICMP Echo server (test peer / loopback daemon)
 └── tests/
     ├── Makefile
-    ├── smoke.sh      Shell smoke tests (TAP, 17 cases, requires root)
-    └── sock_test.c   Userspace socket API tests (TAP, 10 cases)
+    ├── smoke.sh         Shell smoke tests (TAP, 17 cases, requires root)
+    └── sock_test.c      Userspace socket API tests (TAP, 10 cases)
 ```
 
 ---
@@ -85,10 +91,9 @@ sudo apt-get install -y \
 git clone https://github.com/maltejk/ipv8-poc.git
 cd ipv8-poc
 
-# 3. Build the kernel module
-cd kernel
-make
-cd ..
+# 3. Build the kernel module and userspace tools
+cd kernel && make && cd ..
+cd tools  && make && cd ..
 
 # 4. Load the module
 sudo insmod kernel/ipv8.ko
@@ -101,8 +106,8 @@ echo 'zone_server 65001.0.0.1 10.0.0.1' | sudo tee /proc/net/ipv8_config
 #    Format: <name> <asn> <host> [ttl-seconds]
 echo 'peer.example.com 65001.0.0.1 203.0.113.7 300' | sudo tee /proc/net/ipv8_zone
 
-# 7. Inspect the cache
-cat /proc/net/ipv8_zone
+# 7. Ping a v4-compat address (loopback self-test, no second machine needed)
+sudo tools/ping8 -c 4 127.0.0.1
 
 # 8. Run the smoke tests
 cd tests && make run   # requires root; runs both shell and C suites
@@ -149,6 +154,13 @@ Verify your kernel has the required options:
 grep -E 'CONFIG_NETFILTER|CONFIG_PROC_FS' /boot/config-$(uname -r)
 ```
 
+### Tools (`tools/`)
+
+| Dependency | Why |
+|---|---|
+| GCC | Compile `ping8` and `ipv8_echod` |
+| glibc (standard) | No extra libraries; `-lm` for `sqrt` in ping8 stats |
+
 ### Test-time (optional)
 
 | Dependency | Why |
@@ -161,19 +173,21 @@ grep -E 'CONFIG_NETFILTER|CONFIG_PROC_FS' /boot/config-$(uname -r)
 ## Build
 
 ```bash
+# Kernel module
 cd kernel
-
-# Build against the running kernel (default)
-make
-
-# Build against a specific kernel tree
-make KDIR=/path/to/linux-build
-
-# Clean build artefacts
+make                         # build against the running kernel (default)
+make KDIR=/path/to/linux-build   # build against a specific kernel tree
 make clean
+cd ..
+
+# Userspace tools
+cd tools
+make          # produces ./ping8 and ./ipv8_echod
+make clean
+cd ..
 ```
 
-A successful build produces `kernel/ipv8.ko`.
+A successful kernel build produces `kernel/ipv8.ko`.
 
 ---
 
@@ -247,6 +261,134 @@ ok 1 - socket(AF_INET8, SOCK_STREAM) → ESOCKTNOSUPPORT
 ...
 ok 10 - 64 sockets created and closed without error
 # Result: 10/10 passed
+```
+
+---
+
+## Testing with ping8
+
+The `tools/` directory provides two programs for exercising the full
+packet path end-to-end:
+
+| Tool | Role |
+|---|---|
+| `ping8` | Sends ICMP Echo Requests over `AF_INET8`; reports RTT and loss |
+| `ipv8_echod` | Listens for ICMP Echo Requests and replies; acts as the remote peer |
+
+Both require root and the ipv8 kernel module to be loaded.
+
+### Build the tools
+
+```bash
+cd tools
+make          # produces ./ping8 and ./ipv8_echod
+```
+
+### Scenario 1 — v4-compat loopback (single machine)
+
+IPv8 addresses with ASN `0.0.0.0` are backward-compatible IPv4 addresses.
+XLATE8 translates them to IPv4 and back, so you can exercise the full
+module stack without a second host.
+
+```bash
+# Terminal 1: start the echo daemon (handles the ICMP replies)
+sudo tools/ipv8_echod -v
+
+# Terminal 2: ping the loopback address (plain host, ASN = 0.0.0.0)
+sudo tools/ping8 -c 4 127.0.0.1
+```
+
+Expected output (Terminal 2):
+
+```
+PING8 127.0.0.1 (127.0.0.1): 56 data bytes, id=0x1a2b
+64 bytes from 127.0.0.1: icmp8_seq=0 ttl=64 time=0.312 ms
+64 bytes from 127.0.0.1: icmp8_seq=1 ttl=64 time=0.271 ms
+64 bytes from 127.0.0.1: icmp8_seq=2 ttl=64 time=0.289 ms
+64 bytes from 127.0.0.1: icmp8_seq=3 ttl=64 time=0.304 ms
+
+--- 127.0.0.1 ping8 statistics ---
+4 packets transmitted, 4 received, 0% packet loss
+rtt min/avg/max/stddev = 0.271/0.294/0.312/0.015 ms
+```
+
+### Scenario 2 — two hosts on the same LAN
+
+Run the module on both machines.  Replace the addresses below with your
+actual ASN and host allocations.
+
+```bash
+# On host B (10.0.0.2) – start the echo daemon
+sudo insmod kernel/ipv8.ko
+echo 'zone_server 65001.0.0.1 10.0.0.2' | sudo tee /proc/net/ipv8_config
+sudo tools/ipv8_echod -v -b 65001.0.0.1:10.0.0.2
+
+# On host A (10.0.0.1) – ping host B by full IPv8 address
+sudo insmod kernel/ipv8.ko
+echo 'zone_server 65001.0.0.1 10.0.0.1' | sudo tee /proc/net/ipv8_config
+sudo tools/ping8 65001.0.0.1:10.0.0.2
+```
+
+Expected output (host A):
+
+```
+PING8 65001.0.0.1:10.0.0.2 (65001.0.0.1:10.0.0.2): 56 data bytes, id=0x3c7f
+64 bytes from 65001.0.0.1:10.0.0.2: icmp8_seq=0 ttl=64 time=1.042 ms
+64 bytes from 65001.0.0.1:10.0.0.2: icmp8_seq=1 ttl=64 time=0.998 ms
+^C
+--- 65001.0.0.1:10.0.0.2 ping8 statistics ---
+2 packets transmitted, 2 received, 0% packet loss
+rtt min/avg/max/stddev = 0.998/1.020/1.042/0.022 ms
+```
+
+### Scenario 3 — ping by name via zone cache
+
+The zone cache (`/proc/net/ipv8_zone`) acts as a local DNS8 resolver.
+Register a name, then use it as the ping8 target.
+
+```bash
+# Register the peer under a friendly name (TTL = 600 seconds)
+echo 'db.internal 65001.0.0.1 10.0.0.3 600' | sudo tee /proc/net/ipv8_zone
+
+# Confirm the entry is visible
+cat /proc/net/ipv8_zone
+# NAME                             ASN          HOST         TTL(s)
+# db.internal                      65001.0.0.1  10.0.0.3     600
+
+# Ping by name
+sudo tools/ping8 -c 3 db.internal
+```
+
+### ping8 reference
+
+```
+Usage: ping8 [options] <target>
+
+Target:
+  65001.0.0.1:10.0.0.2   full IPv8 address (ASN:host, dotted-decimal)
+  10.0.0.1               v4-compat address (ASN = 0.0.0.0)
+  db.internal            name looked up in /proc/net/ipv8_zone
+
+Options:
+  -c <n>    stop after n packets          (default: unlimited)
+  -i <ms>   interval between packets      (default: 1000 ms)
+  -t <ttl>  IPv8 TTL field value          (default: 64)
+  -W <ms>   reply wait timeout            (default: 2000 ms)
+  -s <n>    extra payload bytes           (default: 56)
+  -v        verbose: print unexpected packets
+  -h        show this help
+```
+
+### ipv8_echod reference
+
+```
+Usage: ipv8_echod [options]
+
+Options:
+  -b <addr>  IPv8 address to bind (default: any)
+             Format: 'asn:host' or 'host' (v4-compat)
+  -v         verbose: log every request and reply
+  -h         show this help
 ```
 
 ---
