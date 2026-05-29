@@ -1,0 +1,19 @@
+# Kernel module build artefacts
+kernel/*.o
+kernel/*.ko
+kernel/*.mod
+kernel/*.mod.c
+kernel/*.mod.o
+kernel/.*.cmd
+kernel/Module.symvers
+kernel/modules.order
+kernel/.tmp_versions/
+
+# Userspace tool binaries
+tools/ping8
+tools/ipv8_echod
+
+# Editor / OS noise
+*.swp
+*~
+.DS_Store
