@@ -64,12 +64,11 @@ static bool ipv8_hdr_ok(const struct ipv8hdr *hdr, unsigned int pkt_len)
         return false;
     }
 
-    /* Verify header checksum over hlen bytes */
+    /* Verify header checksum over hlen bytes.
+     * ip_compute_csum folds with ~sum, so a correct header yields 0x0000. */
     orig_check  = hdr->check;
-    /* ip_compute_csum treats the bytes as a 1s-complement sum; when the
-     * check field is included the result should be 0xffff (== ~0). */
     computed = ip_compute_csum(hdr, hlen);
-    if (computed != 0xffff) {
+    if (computed != 0) {
         pr_debug_ratelimited("checksum error\n");
         return false;
     }
@@ -82,40 +81,10 @@ static bool ipv8_hdr_ok(const struct ipv8hdr *hdr, unsigned int pkt_len)
  * Socket demux
  * ------------------------------------------------------------------ */
 
-/*
- * Find an AF_INET8 socket bound to daddr:dport.
- * Returns the sock with its reference count bumped, or NULL.
- *
- * NOTE: A production implementation would use a full hash table indexed
- * by (saddr, daddr, sport, dport) as IPv4 does.  This linear walk of
- * the proto slab suffices for a PoC.
- */
 static struct sock *ipv8_demux(struct net *net, const struct ipv8hdr *hdr,
                                __be16 dport)
 {
-    struct sock *sk;
-
-    /* Walk all sockets registered under ipv8_prot */
-    sk_for_each_from(sk) {
-        struct ipv8_sock *i8;
-
-        if (sk->sk_family != PF_INET8)
-            continue;
-        if (!net_eq(sock_net(sk), net))
-            continue;
-
-        i8 = ipv8_sk(sk);
-        if (i8->dport && i8->dport != dport)
-            continue;
-        if (i8->saddr.asn || i8->saddr.host) {
-            if (!in8_equal(&i8->saddr, &hdr->daddr))
-                continue;
-        }
-
-        sock_hold(sk);
-        return sk;
-    }
-    return NULL;
+    return ipv8_find_sock(net, &hdr->daddr, dport);
 }
 
 /* ------------------------------------------------------------------ *
@@ -158,11 +127,13 @@ int ipv8_rcv(struct sk_buff *skb, struct net_device *dev,
 
     hdr = (struct ipv8hdr *)skb->data;   /* re-fetch after pull */
 
-    /* v4-compat destination → hand to XLATE8 for IPv4 delivery */
+    /* v4-compat destination → strip IPv8 header and re-inject as IPv4 */
     if (in8_is_v4compat(&hdr->daddr)) {
         atomic_long_inc(&stat_rx_v4compat);
-        if (ipv8_xlate_8to4(skb) == 0)
+        if (ipv8_xlate_8to4(skb) == 0) {
+            netif_rx(skb);
             return NET_RX_SUCCESS;
+        }
         goto drop;
     }
 

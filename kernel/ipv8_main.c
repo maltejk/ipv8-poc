@@ -33,6 +33,57 @@ MODULE_VERSION("0.1.0-poc");
 MODULE_ALIAS_NETPROTO(PF_INET8);
 
 /* ------------------------------------------------------------------ *
+ * Socket registry – used by ipv8_input to demux received packets
+ * ------------------------------------------------------------------ */
+
+static HLIST_HEAD(ipv8_sklist);
+static DEFINE_SPINLOCK(ipv8_sklist_lock);
+
+void ipv8_register_sock(struct sock *sk)
+{
+    spin_lock_bh(&ipv8_sklist_lock);
+    sk_add_node(sk, &ipv8_sklist);
+    spin_unlock_bh(&ipv8_sklist_lock);
+}
+
+void ipv8_unregister_sock(struct sock *sk)
+{
+    spin_lock_bh(&ipv8_sklist_lock);
+    sk_del_node_init(sk);
+    spin_unlock_bh(&ipv8_sklist_lock);
+}
+
+struct sock *ipv8_find_sock(struct net *net, const struct in8_addr *daddr,
+                            __be16 dport)
+{
+    struct sock *sk;
+
+    spin_lock(&ipv8_sklist_lock);
+    hlist_for_each_entry(sk, &ipv8_sklist, sk_node) {
+        struct ipv8_sock *i8;
+
+        if (sk->sk_family != PF_INET8)
+            continue;
+        if (!net_eq(sock_net(sk), net))
+            continue;
+
+        i8 = ipv8_sk(sk);
+        if (i8->dport && i8->dport != dport)
+            continue;
+        if (i8->saddr.asn || i8->saddr.host) {
+            if (!in8_equal(&i8->saddr, daddr))
+                continue;
+        }
+
+        sock_hold(sk);
+        spin_unlock(&ipv8_sklist_lock);
+        return sk;
+    }
+    spin_unlock(&ipv8_sklist_lock);
+    return NULL;
+}
+
+/* ------------------------------------------------------------------ *
  * Socket operations
  * ------------------------------------------------------------------ */
 
@@ -43,6 +94,7 @@ static int ipv8_release(struct socket *sock)
     if (!sk)
         return 0;
 
+    ipv8_unregister_sock(sk);
     sock_orphan(sk);
     sock->sk = NULL;
     sock_put(sk);
@@ -250,6 +302,7 @@ static int ipv8_sock_create(struct net *net, struct socket *sock,
     i8sk->hdrincl = (sock->type == SOCK_RAW);
 
     sock_init_data(sock, sk);
+    ipv8_register_sock(sk);
     sk->sk_family   = PF_INET8;
     sk->sk_protocol = protocol;
 

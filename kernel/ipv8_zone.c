@@ -324,11 +324,12 @@ static void zone_flush_all(void)
 
     spin_lock(&zone_lock);
     hash_for_each_safe(zone_cache, bkt, tmp, e, hnode) {
-        hash_del(&e->hnode);
-        kfree(e);
+        hash_del_rcu(&e->hnode);
+        call_rcu(&e->rcu, zone_entry_free_rcu);
     }
     zone_entry_count = 0;
     spin_unlock(&zone_lock);
+    rcu_barrier();   /* wait for all call_rcu callbacks before module unload */
 }
 
 /* ------------------------------------------------------------------ *

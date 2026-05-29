@@ -249,10 +249,16 @@ static unsigned int ipv8_xlate_prerouting(void *priv,
     if ((iph->daddr & mask) != prefix)
         return NF_ACCEPT;
 
-    /* The destination is in our IPv8 space; translate and steal the skb */
-    if (ipv8_xlate_4to8(skb, NULL) != 0) {
-        atomic_long_inc(&stat_xlate_err);
-        return NF_DROP;
+    /* Save the IPv4 destination before the skb data moves on rewrite */
+    {
+        struct in8_addr local_dst;
+        local_dst.asn  = asn;
+        local_dst.host = iph->daddr;
+
+        if (ipv8_xlate_4to8(skb, &local_dst) != 0) {
+            atomic_long_inc(&stat_xlate_err);
+            return NF_DROP;
+        }
     }
 
     /* Re-inject into the IPv8 receive path */
@@ -296,7 +302,10 @@ static unsigned int ipv8_xlate_postrouting(void *priv,
         return NF_DROP;
     }
 
-    return NF_ACCEPT;
+    /* Route the now-IPv8 packet; ipv8_output always consumes the skb */
+    skb_reset_network_header(skb);
+    ipv8_output(dev_net(state->out), NULL, skb);
+    return NF_STOLEN;
 }
 
 static const struct nf_hook_ops ipv8_nf_ops[] = {

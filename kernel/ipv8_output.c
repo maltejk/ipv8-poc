@@ -139,17 +139,18 @@ int ipv8_output(struct net *net, struct sock *sk, struct sk_buff *skb)
     struct ipv8hdr *hdr = (struct ipv8hdr *)skb->data;
     struct ipv8_route *rt;
     struct net_device *dev;
+    __be32 nexthop;
     int err = -EHOSTUNREACH;
 
     atomic_long_inc(&stat_tx_packets);
 
-    /* v4-compat target: XLATE8 → IPv4 output path */
+    /* v4-compat target: strip IPv8 header and hand off to IPv4 stack */
     if (in8_is_v4compat(&hdr->daddr)) {
-        err = ipv8_xlate_4to8(skb, &hdr->daddr);
+        err = ipv8_xlate_8to4(skb);
         if (err)
             goto drop;
-        /* skb now carries an IPv4 header; let the stack handle it */
-        return err;
+        netif_rx(skb);
+        return 0;
     }
 
     /* Look up a static IPv8 route */
@@ -162,6 +163,7 @@ int ipv8_output(struct net *net, struct sock *sk, struct sk_buff *skb)
         goto drop;
     }
 
+    nexthop = rt->gateway;         /* save before rcu_read_unlock */
     dev = dev_get_by_name_rcu(net, rt->dev_name);
     if (!dev) {
         rcu_read_unlock();
@@ -170,18 +172,18 @@ int ipv8_output(struct net *net, struct sock *sk, struct sk_buff *skb)
     dev_hold(dev);
     rcu_read_unlock();
 
-    /* Resolve next-hop and transmit */
-    err = ipv8_neigh_output(skb, dev, rt->gateway);
+    /* Resolve next-hop and transmit.
+     * neigh_output always consumes the skb; do not kfree on error. */
+    err = ipv8_neigh_output(skb, dev, nexthop);
     dev_put(dev);
 
     if (err)
-        goto drop_counted;
+        atomic_long_inc(&stat_tx_dropped);
 
-    return 0;
+    return err;
 
 drop:
     atomic_long_inc(&stat_tx_dropped);
-drop_counted:
     kfree_skb(skb);
     return err;
 }

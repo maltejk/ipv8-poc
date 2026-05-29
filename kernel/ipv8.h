@@ -239,4 +239,10 @@ int  ipv8_zone_lookup(struct net *net, const char *name,
 void ipv8_zone_update(struct net *net, const char *name,
                       const struct in8_addr *addr, u32 ttl_sec);
 
+/* Socket registry (used by input demux) */
+void         ipv8_register_sock(struct sock *sk);
+void         ipv8_unregister_sock(struct sock *sk);
+struct sock *ipv8_find_sock(struct net *net, const struct in8_addr *daddr,
+                            __be16 dport);
+
 #endif /* _NET_IPV8_H */
