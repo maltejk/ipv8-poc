@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/list.h>
 #include <net/sock.h>
 #include <net/dst.h>

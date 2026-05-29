@@ -30,6 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/hashtable.h>
+#include <linux/jhash.h>
 #include <linux/jiffies.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -156,7 +157,7 @@ void ipv8_zone_update(struct net *net, const char *name,
     if (!e)
         return;
 
-    strlcpy(e->name, name, IPV8_ZONE_NAME_MAX);
+    strscpy(e->name, name, IPV8_ZONE_NAME_MAX);
     e->addr    = *addr;
     e->expires = jiffies + ttl_sec * HZ;
     key        = zone_hash(name);
