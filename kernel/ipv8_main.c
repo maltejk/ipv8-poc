@@ -113,7 +113,6 @@ static int ipv8_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
     i8sk->saddr = addr->sin8_addr;
     i8sk->sport = addr->sin8_port;
-    sock->sk->sk_rcvbuf = SK_DEFAULT_SNDBUF;
 
     return 0;
 }
