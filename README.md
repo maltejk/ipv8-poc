@@ -102,6 +102,8 @@ cd tools  && make && cd ..
 # 4. Load the module
 sudo insmod kernel/ipv8.ko
 dmesg | grep ipv8    # should print "loaded successfully"
+# Note: "module verification failed" / "taints kernel" lines are normal
+#       for unsigned out-of-tree modules on Debian/Ubuntu kernels.
 
 # 5. Set the local ASN and Zone Server address
 echo 'zone_server 65001.0.0.1 10.0.0.1' | sudo tee /proc/net/ipv8_config
@@ -204,8 +206,29 @@ sudo insmod kernel/ipv8.ko
 # Confirm
 lsmod | grep ipv8
 dmesg | grep ipv8
+```
 
-# Set the local ASN (r.r.r.r notation for a 32-bit value)
+> **Expected signing warning** — on kernels with `CONFIG_MODULE_SIG=y`
+> (e.g. all Debian/Ubuntu stock kernels) you will see:
+> ```
+> ipv8: loading out-of-tree module taints kernel.
+> ipv8: module verification failed: signature and/or required key missing - tainting kernel
+> ```
+> This is **normal and harmless** for any out-of-tree module built against
+> pre-built headers.  The module continues loading; the taint is a cosmetic
+> flag.  To silence it you would need the kernel's private signing key from
+> `/lib/modules/$(uname -r)/build/certs/`, which is not distributed with
+> header packages.  For PoC use, ignore it.
+
+The lines that confirm a successful load are:
+```
+ipv8:   AF_INET8  = 19
+ipv8:   ETH_P_IPV8 = 0x0888 (provisional)
+ipv8:   Zone port  = 8538  (provisional)
+ipv8: loaded successfully
+```
+
+```bash
 # and the Zone Server's IPv8 address
 echo 'zone_server <asn> <host>' | sudo tee /proc/net/ipv8_config
 
