@@ -266,14 +266,16 @@ static int config_seq_show(struct seq_file *m, void *v)
 }
 
 /*
- * Write format: "zone_server <asn> <host>\n"
- * Example:       "zone_server 65001.0.0.1 10.0.0.1\n"
+ * Write format (one command per write):
+ *   "zone_server <asn> <host>"    – set Zone Server address
+ *   "local_asn <asn>"             – set local ASN for XLATE8
+ *   "xlate_prefix <prefix> <mask>"– set 4→8 translation prefix
  */
 static ssize_t config_proc_write(struct file *file, const char __user *ubuf,
                                  size_t count, loff_t *ppos)
 {
-    char buf[64], key[32], asn_str[16], host_str[16];
-    struct in8_addr addr;
+    char buf[64], key[32], a[16], b[16];
+    __be32 v1, v2;
 
     if (count >= sizeof(buf))
         return -EINVAL;
@@ -282,20 +284,34 @@ static ssize_t config_proc_write(struct file *file, const char __user *ubuf,
 
     buf[count] = '\0';
 
-    if (sscanf(buf, "%31s %15s %15s", key, asn_str, host_str) != 3)
+    if (sscanf(buf, "%31s %15s %15s", key, a, b) < 2)
         return -EINVAL;
 
-    if (strcmp(key, "zone_server") != 0)
+    if (strcmp(key, "zone_server") == 0) {
+        struct in8_addr addr;
+
+        if (!in4_pton(a, -1, (u8 *)&addr.asn,  -1, NULL) ||
+            !in4_pton(b, -1, (u8 *)&addr.host, -1, NULL))
+            return -EINVAL;
+        WRITE_ONCE(zone_server_addr.asn,  addr.asn);
+        WRITE_ONCE(zone_server_addr.host, addr.host);
+        pr_info("zone: server set to %pI4.%pI4\n", &addr.asn, &addr.host);
+
+    } else if (strcmp(key, "local_asn") == 0) {
+        if (!in4_pton(a, -1, (u8 *)&v1, -1, NULL))
+            return -EINVAL;
+        ipv8_xlate_set_asn(v1);
+
+    } else if (strcmp(key, "xlate_prefix") == 0) {
+        if (!in4_pton(a, -1, (u8 *)&v1, -1, NULL) ||
+            !in4_pton(b, -1, (u8 *)&v2, -1, NULL))
+            return -EINVAL;
+        ipv8_xlate_set_prefix(v1, v2);
+
+    } else {
         return -EINVAL;
+    }
 
-    if (!in4_pton(asn_str,  -1, (u8 *)&addr.asn,  -1, NULL) ||
-        !in4_pton(host_str, -1, (u8 *)&addr.host, -1, NULL))
-        return -EINVAL;
-
-    WRITE_ONCE(zone_server_addr.asn,  addr.asn);
-    WRITE_ONCE(zone_server_addr.host, addr.host);
-
-    pr_info("zone: server set to %pI4.%pI4\n", &addr.asn, &addr.host);
     return count;
 }
 

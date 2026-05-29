@@ -240,8 +240,12 @@ void ipv8_zone_update(struct net *net, const char *name,
                       const struct in8_addr *addr, u32 ttl_sec);
 
 /* Route table (used by zone and future sysfs) */
-int ipv8_route_add(const struct in8_addr *prefix, __be32 gateway,
-                   const char *dev_name);
+int  ipv8_route_add(const struct in8_addr *prefix, __be32 gateway,
+                    const char *dev_name);
+
+/* XLATE8 configuration (called from zone config proc) */
+void ipv8_xlate_set_asn(__be32 asn);
+void ipv8_xlate_set_prefix(__be32 prefix, __be32 mask);
 
 /* Socket registry (used by input demux) */
 void         ipv8_register_sock(struct sock *sk);

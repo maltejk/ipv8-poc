@@ -54,7 +54,7 @@ static __be32 xlate_mask   __read_mostly;
 
 static DEFINE_SPINLOCK(xlate_cfg_lock);
 
-static void ipv8_xlate_set_asn(__be32 asn)
+void ipv8_xlate_set_asn(__be32 asn)
 {
     spin_lock(&xlate_cfg_lock);
     local_asn = asn;
@@ -62,7 +62,7 @@ static void ipv8_xlate_set_asn(__be32 asn)
     pr_info("xlate: local ASN set to %pI4\n", &asn);
 }
 
-static void ipv8_xlate_set_prefix(__be32 prefix, __be32 mask)
+void ipv8_xlate_set_prefix(__be32 prefix, __be32 mask)
 {
     spin_lock(&xlate_cfg_lock);
     xlate_prefix = prefix & mask;
