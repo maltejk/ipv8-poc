@@ -44,7 +44,7 @@ tap_plan $TOTAL_TESTS
 # ------------------------------------------------------------------ #
 # Helper: read last N lines of dmesg that mention ipv8
 # ------------------------------------------------------------------ #
-dmesg_ipv8() { dmesg | grep -i 'ipv8' | tail -5; }
+dmesg_ipv8() { dmesg | grep -i 'ipv8' | tail -20; }
 
 # ------------------------------------------------------------------ #
 # 1. Module not yet loaded
@@ -138,7 +138,7 @@ fi
 # ------------------------------------------------------------------ #
 # 10. Write zone_server config
 # ------------------------------------------------------------------ #
-if echo 'zone_server 65001.0.0.1 10.0.0.1' > /proc/net/ipv8_config 2>/dev/null; then
+if echo 'zone_server 0.0.253.233 10.0.0.1' > /proc/net/ipv8_config 2>/dev/null; then
     pass "write zone_server to /proc/net/ipv8_config"
 else
     fail "write zone_server to /proc/net/ipv8_config"
@@ -156,7 +156,7 @@ fi
 # ------------------------------------------------------------------ #
 # 12. Write a zone cache entry
 # ------------------------------------------------------------------ #
-ENTRY='peer.example.com 65001.0.0.1 203.0.113.7 300'
+ENTRY='peer.example.com 0.0.253.233 203.0.113.7 300'
 if echo "$ENTRY" > /proc/net/ipv8_zone 2>/dev/null; then
     pass "write zone entry to /proc/net/ipv8_zone"
 else

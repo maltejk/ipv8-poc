@@ -106,11 +106,11 @@ dmesg | grep ipv8    # should print "loaded successfully"
 #       for unsigned out-of-tree modules on Debian/Ubuntu kernels.
 
 # 5. Set the local ASN and Zone Server address
-echo 'zone_server 65001.0.0.1 10.0.0.1' | sudo tee /proc/net/ipv8_config
+echo 'zone_server 0.0.253.233 10.0.0.1' | sudo tee /proc/net/ipv8_config
 
 # 6. Add a zone cache entry manually
 #    Format: <name> <asn> <host> [ttl-seconds]
-echo 'peer.example.com 65001.0.0.1 203.0.113.7 300' | sudo tee /proc/net/ipv8_zone
+echo 'peer.example.com 0.0.253.233 203.0.113.7 300' | sudo tee /proc/net/ipv8_zone
 
 # 7. Ping a v4-compat address (loopback self-test, no second machine needed)
 sudo tools/ping8 -c 4 127.0.0.1
@@ -234,7 +234,7 @@ echo 'zone_server <asn> <host>' | sudo tee /proc/net/ipv8_config
 
 # Populate the zone cache manually
 # Format: <name> <asn> <host> [ttl-seconds]
-echo 'myhost 65001.0.0.1 192.0.2.1 600' | sudo tee /proc/net/ipv8_zone
+echo 'myhost 0.0.253.233 192.0.2.1 600' | sudo tee /proc/net/ipv8_zone
 
 # Read the cache
 cat /proc/net/ipv8_zone
@@ -347,23 +347,23 @@ actual ASN and host allocations.
 ```bash
 # On host B (10.0.0.2) – start the echo daemon
 sudo insmod kernel/ipv8.ko
-echo 'zone_server 65001.0.0.1 10.0.0.2' | sudo tee /proc/net/ipv8_config
-sudo tools/ipv8_echod -v -b 65001.0.0.1:10.0.0.2
+echo 'zone_server 0.0.253.233 10.0.0.2' | sudo tee /proc/net/ipv8_config
+sudo tools/ipv8_echod -v -b 0.0.253.233:10.0.0.2
 
 # On host A (10.0.0.1) – ping host B by full IPv8 address
 sudo insmod kernel/ipv8.ko
-echo 'zone_server 65001.0.0.1 10.0.0.1' | sudo tee /proc/net/ipv8_config
-sudo tools/ping8 65001.0.0.1:10.0.0.2
+echo 'zone_server 0.0.253.233 10.0.0.1' | sudo tee /proc/net/ipv8_config
+sudo tools/ping8 0.0.253.233:10.0.0.2
 ```
 
 Expected output (host A):
 
 ```
-PING8 65001.0.0.1:10.0.0.2 (65001.0.0.1:10.0.0.2): 56 data bytes, id=0x3c7f
-64 bytes from 65001.0.0.1:10.0.0.2: icmp8_seq=0 ttl=64 time=1.042 ms
-64 bytes from 65001.0.0.1:10.0.0.2: icmp8_seq=1 ttl=64 time=0.998 ms
+PING8 0.0.253.233:10.0.0.2 (0.0.253.233:10.0.0.2): 56 data bytes, id=0x3c7f
+64 bytes from 0.0.253.233:10.0.0.2: icmp8_seq=0 ttl=64 time=1.042 ms
+64 bytes from 0.0.253.233:10.0.0.2: icmp8_seq=1 ttl=64 time=0.998 ms
 ^C
---- 65001.0.0.1:10.0.0.2 ping8 statistics ---
+--- 0.0.253.233:10.0.0.2 ping8 statistics ---
 2 packets transmitted, 2 received, 0% packet loss
 rtt min/avg/max/stddev = 0.998/1.020/1.042/0.022 ms
 ```
@@ -375,12 +375,12 @@ Register a name, then use it as the ping8 target.
 
 ```bash
 # Register the peer under a friendly name (TTL = 600 seconds)
-echo 'db.internal 65001.0.0.1 10.0.0.3 600' | sudo tee /proc/net/ipv8_zone
+echo 'db.internal 0.0.253.233 10.0.0.3 600' | sudo tee /proc/net/ipv8_zone
 
 # Confirm the entry is visible
 cat /proc/net/ipv8_zone
 # NAME                             ASN          HOST         TTL(s)
-# db.internal                      65001.0.0.1  10.0.0.3     600
+# db.internal                      0.0.253.233  10.0.0.3     600
 
 # Ping by name
 sudo tools/ping8 -c 3 db.internal
@@ -392,7 +392,7 @@ sudo tools/ping8 -c 3 db.internal
 Usage: ping8 [options] <target>
 
 Target:
-  65001.0.0.1:10.0.0.2   full IPv8 address (ASN:host, dotted-decimal)
+  0.0.253.233:10.0.0.2   full IPv8 address (ASN:host, dotted-decimal)
   10.0.0.1               v4-compat address (ASN = 0.0.0.0)
   db.internal            name looked up in /proc/net/ipv8_zone
 

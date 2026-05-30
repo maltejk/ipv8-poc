@@ -126,6 +126,8 @@ The user builds on:
 | Symptom | Root cause |
 |---|---|
 | `sock_register failed: -105 (ENOBUFS)` | `AF_INET8 ≥ NPROTO`; use 19 |
+| `in4_pton` / `inet_pton` rejects ASN string | ASNs must be valid dotted-quad (0-255 per octet); AS65001 = `0.0.253.233`, not `65001.0.0.1` |
+| `dmesg_ipv8 \| tail -5` misses early lines | Module emits ~11 ipv8 lines; use `tail -20` |
 | `module verification failed / taints kernel` | Expected on Debian/Ubuntu; harmless |
 | `ip_compute_csum` returns 0x0000 for a valid header, not 0xffff | `csum_fold` applies `~sum`; check `!= 0`, not `!= 0xffff` |
 | `neigh_output` error path: do NOT `kfree_skb` | `neigh_output` always consumes the skb |
