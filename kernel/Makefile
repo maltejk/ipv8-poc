@@ -45,9 +45,9 @@ help:
 	@echo "Runtime quick-start:"
 	@echo "  sudo insmod ipv8.ko"
 	@echo "  # Set local ASN and zone server:"
-	@echo "  echo 'zone_server 65001.0.0.1 10.0.0.1' | sudo tee /proc/net/ipv8_config"
+	@echo "  echo 'zone_server 0.0.253.233 10.0.0.1' | sudo tee /proc/net/ipv8_config"
 	@echo "  # Insert a manual zone cache entry (name asn host [ttl]):"
-	@echo "  echo 'myhost.example.com 65001.0.0.1 203.0.113.7 300' | sudo tee /proc/net/ipv8_zone"
+	@echo "  echo 'myhost.example.com 0.0.253.233 203.0.113.7 300' | sudo tee /proc/net/ipv8_zone"
 	@echo "  # Inspect cache:"
 	@echo "  cat /proc/net/ipv8_zone"
 
