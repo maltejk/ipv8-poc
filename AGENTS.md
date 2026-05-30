@@ -130,6 +130,7 @@ The user builds on:
 | `dmesg_ipv8 \| tail -5` misses early lines | Module emits ~11 ipv8 lines; use `tail -20` |
 | `module verification failed / taints kernel` | Expected on Debian/Ubuntu; harmless |
 | `ip_compute_csum` returns 0x0000 for a valid header, not 0xffff | `csum_fold` applies `~sum`; check `!= 0`, not `!= 0xffff` |
+| Socket registry locking in `ipv8_find_sock` | Process context: `spin_lock_bh` / `spin_unlock_bh`; softirq (packet Rx path): plain `spin_lock` / `spin_unlock` — never `spin_lock_bh` from softirq |
 | `neigh_output` error path: do NOT `kfree_skb` | `neigh_output` always consumes the skb |
 | `hash_del` + `kfree` in `zone_flush_all` | Use `hash_del_rcu` + `call_rcu` + `rcu_barrier()` |
 | Reading route fields after `rcu_read_unlock` | Save all fields inside the RCU critical section |
